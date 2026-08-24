@@ -3,6 +3,9 @@
  * Direct communication with ESP32 via HTTP endpoints
  */
 
+// Replace with your ESP32 IP from Serial Monitor (e.g., "http://192.168.1.50")
+const ESP32_IP = "10.63.112.105";
+
 const state = {
   slotBooked: [false, false, false],
   slotOccupied: [false, false, false],
@@ -23,8 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // =========================================================
 async function fetchSlotData() {
   try {
-    // ESP32 must serve this endpoint
-    const res = await fetch("http://esp32.local/getSlots");
+    const res = await fetch(`${ESP32_IP}/getSlots`);
     if (res.ok) {
       const data = await res.json();
       state.slotBooked = data.booked;
@@ -39,12 +41,8 @@ async function fetchSlotData() {
 
 async function sendBookingUpdate(slotNum, booked) {
   try {
-    // ESP32 must accept booking updates here
-    const res = await fetch("http://esp32.local/updateBooking", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slot: slotNum, booked })
-    });
+    // ESP32 expects query params, not JSON body
+    const res = await fetch(`${ESP32_IP}/updateBooking?slot=${slotNum}&booked=${booked}`);
     return res.ok;
   } catch (err) {
     console.error("Failed to update booking:", err);
@@ -102,4 +100,13 @@ function renderDashboard() {
       slotBay.className = "parking-slot available";
     }
   }
+}
+
+// =========================================================
+// EVENT LISTENERS (example)
+// =========================================================
+function setupEventListeners() {
+  document.getElementById("toggleSlot1").addEventListener("click", () => toggleSlotBooking(1));
+  document.getElementById("toggleSlot2").addEventListener("click", () => toggleSlotBooking(2));
+  document.getElementById("toggleSlot3").addEventListener("click", () => toggleSlotBooking(3));
 }
