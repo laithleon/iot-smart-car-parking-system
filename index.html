@@ -10,9 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
-<body>
-
-  <!-- Top Navigation Bar -->
+<body>  <!-- Top Navigation Bar -->
   <header class="navbar">
     <div class="nav-brand">
       <div class="brand-icon">
@@ -23,13 +21,11 @@
         <span class="sub-brand">ESP32 + Blynk Cloud REST API</span>
       </div>
     </div>
-
     <div class="nav-controls">
       <div class="status-pill" id="connectionPill">
         <span class="status-dot blink" id="statusDot"></span>
         <span id="statusText">Checking...</span>
       </div>
-
       <div class="mode-toggle">
         <button id="liveModeBtn" class="mode-btn active" title="Connect to ESP32 via Blynk API">
           <i class="fa-solid fa-tower-broadcast"></i> Live Blynk
@@ -38,11 +34,9 @@
           <i class="fa-solid fa-gamepad"></i> Demo Mode
         </button>
       </div>
-
       <button id="soundToggleBtn" class="icon-btn" title="Toggle Sound Alarms">
         <i class="fa-solid fa-volume-high" id="soundIcon"></i>
       </button>
-
       <button id="settingsBtn" class="icon-btn" title="Configure Blynk Settings">
         <i class="fa-solid fa-gear"></i>
       </button>
@@ -365,9 +359,7 @@
     </div>
 
   </main>
-
-  <!-- SETTINGS MODAL -->
-  <div class="modal-backdrop" id="settingsModal">
+  <!-- SETTINGS MODAL -->  <div class="modal-backdrop" id="settingsModal">
     <div class="modal-dialog">
       <div class="modal-header">
         <div class="card-title">
@@ -376,7 +368,6 @@
         </div>
         <button class="modal-close-btn" id="closeSettingsBtn">&times;</button>
       </div>
-
       <div class="modal-body">
         <div class="form-group">
           <label for="blynkTokenInput">Blynk Auth Token (from Arduino Code):</label>
@@ -386,7 +377,6 @@
           </div>
           <small class="help-text">Found in your code: <code>#define BLYNK_AUTH_TOKEN "..."</code></small>
         </div>
-
         <div class="form-group">
           <label for="blynkServerSelect">Blynk Cloud Server Region:</label>
           <select id="blynkServerSelect">
@@ -397,7 +387,6 @@
             <option value="blr1.blynk.cloud">blr1.blynk.cloud (India)</option>
           </select>
         </div>
-
         <div class="form-group">
           <label for="pollIntervalSelect">Polling Refresh Rate:</label>
           <select id="pollIntervalSelect">
@@ -407,7 +396,6 @@
             <option value="5000">5.0 Seconds</option>
           </select>
         </div>
-
         <div class="datastreams-reference">
           <h4><i class="fa-solid fa-circle-info"></i> Virtual Pin Mappings in your Arduino Code</h4>
           <table>
@@ -429,7 +417,6 @@
           </table>
         </div>
       </div>
-
       <div class="modal-footer">
         <button class="btn btn-secondary" id="testApiBtn">
           <i class="fa-solid fa-plug"></i> Test Connection
@@ -440,10 +427,7 @@
       </div>
     </div>
   </div>
-
-  <!-- Toast Notification Container -->
-  <div class="toast-container" id="toastContainer"></div>
-
+  <!-- Toast Notification Container --> <div class="toast-container" id="toastContainer"></div>
   <script src="app.js"></script>
 </body>
 </html>

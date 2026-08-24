@@ -3,14 +3,16 @@
  * Direct communication with ESP32 via HTTP endpoints
  */
 
-// Replace with your ESP32 IP from Serial Monitor (e.g., "http://192.168.1.50")
 const ESP32_IP = "http://10.63.112.105";
-
 
 const state = {
   slotBooked: [false, false, false],
   slotOccupied: [false, false, false],
   slotAvailable: [true, true, true],
+  gateInOpen: false,
+  gateOutOpen: false,
+  lcdLine1: "",
+  lcdLine2: "",
   pollInterval: 1500
 };
 
@@ -33,6 +35,10 @@ async function fetchSlotData() {
       state.slotBooked = data.booked;
       state.slotOccupied = data.occupied;
       state.slotAvailable = data.available;
+      state.gateInOpen = data.gateInOpen;
+      state.gateOutOpen = data.gateOutOpen;
+      state.lcdLine1 = data.lcdLine1;
+      state.lcdLine2 = data.lcdLine2;
       renderDashboard();
     }
   } catch (err) {
@@ -42,7 +48,6 @@ async function fetchSlotData() {
 
 async function sendBookingUpdate(slotNum, booked) {
   try {
-    // ESP32 expects query params, not JSON body
     const res = await fetch(`${ESP32_IP}/updateBooking?slot=${slotNum}&booked=${booked}`);
     return res.ok;
   } catch (err) {
@@ -77,34 +82,53 @@ function toggleSlotBooking(slotNum) {
 }
 
 // =========================================================
-// DASHBOARD RENDERING (simplified)
+// DASHBOARD RENDERING
 // =========================================================
 function renderDashboard() {
+  // Render slots
   for (let i = 0; i < 3; i++) {
     const slotNum = i + 1;
     const isBooked = state.slotBooked[i];
     const isOccupied = state.slotOccupied[i];
     const slotBay = document.getElementById(`slotBay${slotNum}`);
     const stateText = document.getElementById(`stateText${slotNum}`);
+    const bookTag = document.getElementById(`bookTag${slotNum}`);
+    const carGraphic = document.getElementById(`car${slotNum}`);
 
     if (isBooked && isOccupied) {
       stateText.textContent = "VIOLATION!";
       slotBay.className = "parking-slot violation";
+      bookTag.style.display = "block";
+      carGraphic.style.display = "block";
     } else if (isOccupied) {
       stateText.textContent = "OCCUPIED";
       slotBay.className = "parking-slot occupied";
+      bookTag.style.display = "none";
+      carGraphic.style.display = "block";
     } else if (isBooked) {
       stateText.textContent = "RESERVED";
       slotBay.className = "parking-slot booked";
+      bookTag.style.display = "block";
+      carGraphic.style.display = "none";
     } else {
       stateText.textContent = "AVAILABLE";
       slotBay.className = "parking-slot available";
+      bookTag.style.display = "none";
+      carGraphic.style.display = "none";
     }
   }
+
+  // Render gate status
+  document.getElementById("gateInStatus").textContent = state.gateInOpen ? "OPEN" : "CLOSED";
+  document.getElementById("gateOutStatus").textContent = state.gateOutOpen ? "OPEN" : "CLOSED";
+
+  // Render LCD lines
+  document.getElementById("lcdRow0").textContent = state.lcdLine1;
+  document.getElementById("lcdRow1").textContent = state.lcdLine2;
 }
 
 // =========================================================
-// EVENT LISTENERS (example)
+// EVENT LISTENERS
 // =========================================================
 function setupEventListeners() {
   document.getElementById("toggleSlot1").addEventListener("click", () => toggleSlotBooking(1));
