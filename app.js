@@ -4,7 +4,8 @@
  */
 
 // Replace with your ESP32 IP from Serial Monitor (e.g., "http://192.168.1.50")
-const ESP32_IP = "10.63.112.105";
+const ESP32_IP = "http://10.63.112.105";
+
 
 const state = {
   slotBooked: [false, false, false],
