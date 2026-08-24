@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Car Parking System - IoT Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="nav-brand">
+      <div class="brand-icon">
+        <i class="fa-solid fa-square-parking"></i>
+      </div>
+      <div>
+        <h1>SMART PARKING IOT</h1>
+        <span class="sub-brand">ESP32 + Blynk Cloud REST API</span>
+      </div>
+    </div>
+
+    <div class="nav-controls">
+      <div class="status-pill" id="connectionPill">
+        <span class="status-dot blink" id="statusDot"></span>
+        <span id="statusText">Checking...</span>
+      </div>
+
+      <div class="mode-toggle">
+        <button id="liveModeBtn" class="mode-btn active" title="Connect to ESP32 via Blynk API">
+          <i class="fa-solid fa-tower-broadcast"></i> Live Blynk
+        </button>
+        <button id="demoModeBtn" class="mode-btn" title="Simulate without hardware">
+          <i class="fa-solid fa-gamepad"></i> Demo Mode
+        </button>
+      </div>
+
+      <button id="soundToggleBtn" class="icon-btn" title="Toggle Sound Alarms">
+        <i class="fa-solid fa-volume-high" id="soundIcon"></i>
+      </button>
+
+      <button id="settingsBtn" class="icon-btn" title="Configure Blynk Settings">
+        <i class="fa-solid fa-gear"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Dashboard Container -->
+  <main class="dashboard-container">
+
+    <!-- Top KPI / Statistics Cards -->
+    <section class="stats-row">
+      <div class="stat-card">
+        <div class="stat-icon purple"><i class="fa-solid fa-car-tunnel"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Total Capacity</span>
+          <span class="stat-value" id="statTotal">3 Slots</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon green"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Available Slots</span>
+          <span class="stat-value text-green" id="statAvailable">3</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon yellow"><i class="fa-solid fa-calendar-check"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Booked (Reserved)</span>
+          <span class="stat-value text-yellow" id="statBooked">0</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon red"><i class="fa-solid fa-car-side"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Occupied (Parked)</span>
+          <span class="stat-value text-red" id="statOccupied">0</span>
+        </div>
+      </div>
+
+      <div class="stat-card status-box" id="lotStatusCard">
+        <div class="stat-icon cyan"><i class="fa-solid fa-shield-halved"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Parking Status</span>
+          <span class="stat-value text-cyan" id="lotStatusText">SLOTS OPEN</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Violation Alert Banner (Hidden by default) -->
+    <section class="violation-banner" id="violationBanner" style="display: none;">
+      <div class="violation-content">
+        <i class="fa-solid fa-triangle-exclamation flash-icon"></i>
+        <div>
+          <h3>PARKING VIOLATION ALERT!</h3>
+          <p id="violationDetail">A vehicle is detected on a booked slot without authorization!</p>
+        </div>
+      </div>
+      <button class="dismiss-btn" id="dismissViolationBtn">Mute Alarm</button>
+    </section>
+
+    <!-- Main Content Layout -->
+    <div class="main-grid">
+
+      <!-- LEFT: 2D Interactive Parking Bay Visualizer -->
+      <section class="card parking-visualizer-card">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-map-location-dot"></i>
+            <h2>Live 2D Parking Lot Visualization</h2>
+          </div>
+          <span class="badge" id="simHelpBadge"><i class="fa-solid fa-hand-pointer"></i> Click slots in Demo Mode to toggle cars</span>
+        </div>
+
+        <div class="parking-lot-view">
+          
+          <!-- ENTRY GATE -->
+          <div class="gate-zone gate-in-zone">
+            <div class="gate-label">
+              <i class="fa-solid fa-arrow-right-to-bracket"></i> ENTRY GATE (IN)
+            </div>
+            <div class="gate-barrier-container">
+              <div class="barrier-pivot">
+                <div class="barrier-arm" id="gateInArm"></div>
+              </div>
+              <div class="gate-post"></div>
+            </div>
+            <div class="gate-state-pill" id="gateInStatus">CLOSED</div>
+            <div class="sensor-indicator" id="irInSensor" title="IR Gate In Sensor (Pin 14)">
+              <span class="dot"></span> IR Sensor IN
+            </div>
+            <button class="gate-trigger-btn" id="triggerGateInBtn" title="Simulate car approaching Gate IN">
+              <i class="fa-solid fa-car"></i> Car Arrival
+            </button>
+          </div>
+
+          <!-- PARKING BAYS -->
+          <div class="parking-bays-container">
+            <div class="roadway top-road">
+              <span class="lane-marking">ENTRY DRIVEWAY ➔</span>
+            </div>
+
+            <div class="slots-grid">
+              <!-- SLOT 1 -->
+              <div class="parking-slot" id="slotBay1" data-slot="1">
+                <div class="slot-header">
+                  <span class="slot-num">SLOT 01</span>
+                  <div class="slot-led" id="ledSlot1" title="Slot 1 Status LED"></div>
+                </div>
+                <div class="slot-body">
+                  <div class="car-graphic" id="car1">
+                    <i class="fa-solid fa-car-side"></i>
+                  </div>
+                  <div class="booking-tag" id="bookTag1">RESERVED</div>
+                  <div class="slot-state-text" id="stateText1">AVAILABLE</div>
+                </div>
+                <div class="slot-footer">
+                  <span class="sensor-dist" id="dist1"><i class="fa-solid fa-ruler-horizontal"></i> Empty</span>
+                </div>
+              </div>
+
+              <!-- SLOT 2 -->
+              <div class="parking-slot" id="slotBay2" data-slot="2">
+                <div class="slot-header">
+                  <span class="slot-num">SLOT 02</span>
+                  <div class="slot-led" id="ledSlot2" title="Slot 2 Status LED"></div>
+                </div>
+                <div class="slot-body">
+                  <div class="car-graphic" id="car2">
+                    <i class="fa-solid fa-car-side"></i>
+                  </div>
+                  <div class="booking-tag" id="bookTag2">RESERVED</div>
+                  <div class="slot-state-text" id="stateText2">AVAILABLE</div>
+                </div>
+                <div class="slot-footer">
+                  <span class="sensor-dist" id="dist2"><i class="fa-solid fa-ruler-horizontal"></i> Empty</span>
+                </div>
+              </div>
+
+              <!-- SLOT 3 -->
+              <div class="parking-slot" id="slotBay3" data-slot="3">
+                <div class="slot-header">
+                  <span class="slot-num">SLOT 03</span>
+                  <div class="slot-led" id="ledSlot3" title="Slot 3 Status LED"></div>
+                </div>
+                <div class="slot-body">
+                  <div class="car-graphic" id="car3">
+                    <i class="fa-solid fa-car-side"></i>
+                  </div>
+                  <div class="booking-tag" id="bookTag3">RESERVED</div>
+                  <div class="slot-state-text" id="stateText3">AVAILABLE</div>
+                </div>
+                <div class="slot-footer">
+                  <span class="sensor-dist" id="dist3"><i class="fa-solid fa-ruler-horizontal"></i> Empty</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="roadway bottom-road">
+              <span class="lane-marking">EXIT DRIVEWAY ➔</span>
+            </div>
+          </div>
+
+          <!-- EXIT GATE -->
+          <div class="gate-zone gate-out-zone">
+            <div class="gate-label">
+              <i class="fa-solid fa-arrow-right-from-bracket"></i> EXIT GATE (OUT)
+            </div>
+            <div class="gate-barrier-container">
+              <div class="barrier-pivot">
+                <div class="barrier-arm" id="gateOutArm"></div>
+              </div>
+              <div class="gate-post"></div>
+            </div>
+            <div class="gate-state-pill" id="gateOutStatus">CLOSED</div>
+            <div class="sensor-indicator" id="irOutSensor" title="IR Gate Out Sensor (Pin 27)">
+              <span class="dot"></span> IR Sensor OUT
+            </div>
+            <button class="gate-trigger-btn" id="triggerGateOutBtn" title="Simulate car exiting at Gate OUT">
+              <i class="fa-solid fa-car"></i> Car Departure
+            </button>
+          </div>
+
+        </div>
+
+        <!-- System Hardware LED Panel Indicator -->
+        <div class="hardware-leds-bar">
+          <div class="hw-led-group">
+            <span class="hw-label">System Green LED (Pin 12):</span>
+            <div class="led-bulb bulb-green" id="hwLedGreen"></div>
+          </div>
+          <div class="hw-led-group">
+            <span class="hw-label">System Red LED (Pin 13):</span>
+            <div class="led-bulb bulb-red" id="hwLedRed"></div>
+          </div>
+          <div class="hw-led-group">
+            <span class="hw-label">Yellow LEDs (Pins 17, 16, 15):</span>
+            <div class="led-bulb bulb-yellow" id="hwLedYellow1" title="Slot 1 Yellow LED"></div>
+            <div class="led-bulb bulb-yellow" id="hwLedYellow2" title="Slot 2 Yellow LED"></div>
+            <div class="led-bulb bulb-yellow" id="hwLedYellow3" title="Slot 3 Yellow LED"></div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- RIGHT COLUMN: Booking Management & Simulated 16x2 LCD -->
+      <div class="right-column">
+
+        <!-- 16x2 LCD SCREEN SIMULATOR -->
+        <section class="card lcd-card">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-tv"></i>
+              <h2>I2C 16x2 LCD Live Display</h2>
+            </div>
+            <span class="lcd-address">Addr: 0x27</span>
+          </div>
+
+          <div class="lcd-outer-bezel">
+            <div class="lcd-screen" id="lcdScreen">
+              <div class="lcd-row" id="lcdRow0">S1:O  S2:O  S3:O</div>
+              <div class="lcd-row" id="lcdRow1">Gate Closed     </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SLOT BOOKING CONTROLS -->
+        <section class="card booking-card">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-ticket"></i>
+              <h2>Slot Reservation Controls</h2>
+            </div>
+            <span class="badge info-badge">Blynk V0, V1, V2</span>
+          </div>
+
+          <div class="booking-slots-list">
+            
+            <!-- Slot 1 Control Card -->
+            <div class="slot-control-item" id="slotControl1">
+              <div class="slot-meta">
+                <div class="slot-badge">01</div>
+                <div>
+                  <h4>Parking Slot #1</h4>
+                  <div class="status-indicator" id="statusDesc1">
+                    <span class="badge badge-success">Available</span>
+                  </div>
+                </div>
+              </div>
+              <div class="slot-actions">
+                <button class="btn btn-book" id="bookBtn1" onclick="toggleSlotBooking(1)">
+                  <i class="fa-solid fa-bookmark"></i> Book Slot
+                </button>
+              </div>
+            </div>
+
+            <!-- Slot 2 Control Card -->
+            <div class="slot-control-item" id="slotControl2">
+              <div class="slot-meta">
+                <div class="slot-badge">02</div>
+                <div>
+                  <h4>Parking Slot #2</h4>
+                  <div class="status-indicator" id="statusDesc2">
+                    <span class="badge badge-success">Available</span>
+                  </div>
+                </div>
+              </div>
+              <div class="slot-actions">
+                <button class="btn btn-book" id="bookBtn2" onclick="toggleSlotBooking(2)">
+                  <i class="fa-solid fa-bookmark"></i> Book Slot
+                </button>
+              </div>
+            </div>
+
+            <!-- Slot 3 Control Card -->
+            <div class="slot-control-item" id="slotControl3">
+              <div class="slot-meta">
+                <div class="slot-badge">03</div>
+                <div>
+                  <h4>Parking Slot #3</h4>
+                  <div class="status-indicator" id="statusDesc3">
+                    <span class="badge badge-success">Available</span>
+                  </div>
+                </div>
+              </div>
+              <div class="slot-actions">
+                <button class="btn btn-book" id="bookBtn3" onclick="toggleSlotBooking(3)">
+                  <i class="fa-solid fa-bookmark"></i> Book Slot
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- ACTIVITY & SYSTEM EVENT LOG -->
+        <section class="card log-card">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-clock-rotate-left"></i>
+              <h2>Live Activity & Event Log</h2>
+            </div>
+            <button class="clear-log-btn" id="clearLogBtn" title="Clear log">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+          <div class="event-log-box" id="eventLogBox">
+            <div class="log-entry info">
+              <span class="log-time">System</span>
+              <span class="log-msg">Smart Car Parking System Dashboard Initialized.</span>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- SETTINGS MODAL -->
+  <div class="modal-backdrop" id="settingsModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="card-title">
+          <i class="fa-solid fa-sliders"></i>
+          <h3>Blynk IoT Cloud Configuration</h3>
+        </div>
+        <button class="modal-close-btn" id="closeSettingsBtn">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="blynkTokenInput">Blynk Auth Token (from Arduino Code):</label>
+          <div class="input-with-icon">
+            <i class="fa-solid fa-key"></i>
+            <input type="text" id="blynkTokenInput" placeholder="Paste your BLYNK_AUTH_TOKEN here">
+          </div>
+          <small class="help-text">Found in your code: <code>#define BLYNK_AUTH_TOKEN "..."</code></small>
+        </div>
+
+        <div class="form-group">
+          <label for="blynkServerSelect">Blynk Cloud Server Region:</label>
+          <select id="blynkServerSelect">
+            <option value="blynk.cloud">blynk.cloud (Global Default)</option>
+            <option value="fra1.blynk.cloud">fra1.blynk.cloud (Europe)</option>
+            <option value="ny3.blynk.cloud">ny3.blynk.cloud (North America)</option>
+            <option value="sgp1.blynk.cloud">sgp1.blynk.cloud (Asia / Singapore)</option>
+            <option value="blr1.blynk.cloud">blr1.blynk.cloud (India)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="pollIntervalSelect">Polling Refresh Rate:</label>
+          <select id="pollIntervalSelect">
+            <option value="1000">1.0 Second (Realtime)</option>
+            <option value="1500" selected>1.5 Seconds (Recommended)</option>
+            <option value="2500">2.5 Seconds</option>
+            <option value="5000">5.0 Seconds</option>
+          </select>
+        </div>
+
+        <div class="datastreams-reference">
+          <h4><i class="fa-solid fa-circle-info"></i> Virtual Pin Mappings in your Arduino Code</h4>
+          <table>
+            <thead>
+              <tr>
+                <th>Pin</th>
+                <th>Direction</th>
+                <th>Usage</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>V0</code></td><td>Web ➔ ESP32</td><td>Slot 1 Booking (0: Unbooked, 1: Booked)</td></tr>
+              <tr><td><code>V1</code></td><td>Web ➔ ESP32</td><td>Slot 2 Booking (0: Unbooked, 1: Booked)</td></tr>
+              <tr><td><code>V2</code></td><td>Web ➔ ESP32</td><td>Slot 3 Booking (0: Unbooked, 1: Booked)</td></tr>
+              <tr><td><code>V3</code></td><td>ESP32 ➔ Web</td><td>Slot 1 Available (1: Free, 0: Unavailable)</td></tr>
+              <tr><td><code>V4</code></td><td>ESP32 ➔ Web</td><td>Slot 2 Available (1: Free, 0: Unavailable)</td></tr>
+              <tr><td><code>V5</code></td><td>ESP32 ➔ Web</td><td>Slot 3 Available (1: Free, 0: Unavailable)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="testApiBtn">
+          <i class="fa-solid fa-plug"></i> Test Connection
+        </button>
+        <button class="btn btn-primary" id="saveSettingsBtn">
+          <i class="fa-solid fa-floppy-disk"></i> Save & Connect
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
