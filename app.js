@@ -29,16 +29,29 @@ document.addEventListener('DOMContentLoaded', () => {
 // =========================================================
 async function fetchSlotData() {
   try {
-    const res = await fetch(`${ESP32_IP}/getSlots`);
+    const res = await fetch(`${ESP32_IP}/status`);
     if (res.ok) {
       const data = await res.json();
-      state.slotBooked = data.booked;
-      state.slotOccupied = data.occupied;
-      state.slotAvailable = data.available;
-      state.gateInOpen = data.gateInOpen;
-      state.gateOutOpen = data.gateOutOpen;
-      state.lcdLine1 = data.lcdLine1;
-      state.lcdLine2 = data.lcdLine2;
+      // Update state from ESP32 JSON
+      state.slotBooked = [
+        data.slot1 === "Booked",
+        data.slot2 === "Booked",
+        data.slot3 === "Booked"
+      ];
+      state.slotOccupied = [
+        data.slot1 === "Occupied",
+        data.slot2 === "Occupied",
+        data.slot3 === "Occupied"
+      ];
+      state.slotAvailable = [
+        data.slot1 === "Available",
+        data.slot2 === "Available",
+        data.slot3 === "Available"
+      ];
+      state.gateInOpen = (data.gateIn === "Open");
+      state.gateOutOpen = (data.gateOut === "Open");
+      state.lcdLine1 = data.lcd;   // ESP32 sends combined LCD line
+      state.lcdLine2 = "";         // optional second line if you extend JSON
       renderDashboard();
     }
   } catch (err) {
@@ -48,7 +61,7 @@ async function fetchSlotData() {
 
 async function sendBookingUpdate(slotNum, booked) {
   try {
-    const res = await fetch(`${ESP32_IP}/updateBooking?slot=${slotNum}&booked=${booked}`);
+    const res = await fetch(`${ESP32_IP}/book?slot=${slotNum}&state=${booked}`);
     return res.ok;
   } catch (err) {
     console.error("Failed to update booking:", err);
@@ -77,7 +90,7 @@ function toggleSlotBooking(slotNum) {
   const newBookedState = !state.slotBooked[idx];
   state.slotBooked[idx] = newBookedState;
 
-  sendBookingUpdate(slotNum, newBookedState);
+  sendBookingUpdate(slotNum, newBookedState ? 1 : 0);
   renderDashboard();
 }
 

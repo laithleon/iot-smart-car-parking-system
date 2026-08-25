@@ -3,14 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Smart Car Parking System - IoT Dashboard</title>
+  <title>Smart Car Parking System - ESP32 IoT Dashboard</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
-<body>  <!-- Top Navigation Bar -->
+<body>
+
+  <!-- Top Navigation Bar -->
   <header class="navbar">
     <div class="nav-brand">
       <div class="brand-icon">
@@ -18,26 +20,21 @@
       </div>
       <div>
         <h1>SMART PARKING IOT</h1>
-        <span class="sub-brand">ESP32 + Blynk Cloud REST API</span>
+        <span class="sub-brand">ESP32 Direct HTTP API (10.63.112.105)</span>
       </div>
     </div>
+
     <div class="nav-controls">
       <div class="status-pill" id="connectionPill">
         <span class="status-dot blink" id="statusDot"></span>
-        <span id="statusText">Checking...</span>
+        <span id="statusText">ESP32 Online</span>
       </div>
-      <div class="mode-toggle">
-        <button id="liveModeBtn" class="mode-btn active" title="Connect to ESP32 via Blynk API">
-          <i class="fa-solid fa-tower-broadcast"></i> Live Blynk
-        </button>
-        <button id="demoModeBtn" class="mode-btn" title="Simulate without hardware">
-          <i class="fa-solid fa-gamepad"></i> Demo Mode
-        </button>
-      </div>
+
       <button id="soundToggleBtn" class="icon-btn" title="Toggle Sound Alarms">
         <i class="fa-solid fa-volume-high" id="soundIcon"></i>
       </button>
-      <button id="settingsBtn" class="icon-btn" title="Configure Blynk Settings">
+
+      <button id="settingsBtn" class="icon-btn" title="ESP32 API Info">
         <i class="fa-solid fa-gear"></i>
       </button>
     </div>
@@ -59,32 +56,24 @@
       <div class="stat-card">
         <div class="stat-icon green"><i class="fa-solid fa-circle-check"></i></div>
         <div class="stat-info">
-          <span class="stat-label">Available Slots</span>
-          <span class="stat-value text-green" id="statAvailable">3</span>
+          <span class="stat-label">System Mode</span>
+          <span class="stat-value text-green" id="statMode">HTTP REST</span>
         </div>
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon yellow"><i class="fa-solid fa-calendar-check"></i></div>
+        <div class="stat-icon cyan"><i class="fa-solid fa-microchip"></i></div>
         <div class="stat-info">
-          <span class="stat-label">Booked (Reserved)</span>
-          <span class="stat-value text-yellow" id="statBooked">0</span>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-icon red"><i class="fa-solid fa-car-side"></i></div>
-        <div class="stat-info">
-          <span class="stat-label">Occupied (Parked)</span>
-          <span class="stat-value text-red" id="statOccupied">0</span>
+          <span class="stat-label">Host Target</span>
+          <span class="stat-value text-cyan" style="font-size: 1.1rem;">10.63.112.105</span>
         </div>
       </div>
 
       <div class="stat-card status-box" id="lotStatusCard">
         <div class="stat-icon cyan"><i class="fa-solid fa-shield-halved"></i></div>
         <div class="stat-info">
-          <span class="stat-label">Parking Status</span>
-          <span class="stat-value text-cyan" id="lotStatusText">SLOTS OPEN</span>
+          <span class="stat-label">Polling Rate</span>
+          <span class="stat-value text-cyan" id="pollRateText">1.5s</span>
         </div>
       </div>
     </section>
@@ -111,7 +100,7 @@
             <i class="fa-solid fa-map-location-dot"></i>
             <h2>Live 2D Parking Lot Visualization</h2>
           </div>
-          <span class="badge" id="simHelpBadge"><i class="fa-solid fa-hand-pointer"></i> Click slots in Demo Mode to toggle cars</span>
+          <span class="badge" id="simHelpBadge"><i class="fa-solid fa-satellite-dish"></i> Live ESP32 Hardware State</span>
         </div>
 
         <div class="parking-lot-view">
@@ -128,12 +117,9 @@
               <div class="gate-post"></div>
             </div>
             <div class="gate-state-pill" id="gateInStatus">CLOSED</div>
-            <div class="sensor-indicator" id="irInSensor" title="IR Gate In Sensor (Pin 14)">
+            <div class="sensor-indicator" id="irInSensor" title="IR Gate In Sensor">
               <span class="dot"></span> IR Sensor IN
             </div>
-            <button class="gate-trigger-btn" id="triggerGateInBtn" title="Simulate car approaching Gate IN">
-              <i class="fa-solid fa-car"></i> Car Arrival
-            </button>
           </div>
 
           <!-- PARKING BAYS -->
@@ -144,56 +130,56 @@
 
             <div class="slots-grid">
               <!-- SLOT 1 -->
-              <div class="parking-slot" id="slotBay1" data-slot="1">
+              <div class="parking-slot available" id="slotBay1" data-slot="1">
                 <div class="slot-header">
                   <span class="slot-num">SLOT 01</span>
                   <div class="slot-led" id="ledSlot1" title="Slot 1 Status LED"></div>
                 </div>
                 <div class="slot-body">
-                  <div class="car-graphic" id="car1">
+                  <div class="car-graphic" id="car1" style="display: none;">
                     <i class="fa-solid fa-car-side"></i>
                   </div>
-                  <div class="booking-tag" id="bookTag1">RESERVED</div>
+                  <div class="booking-tag" id="bookTag1" style="display: none;">RESERVED</div>
                   <div class="slot-state-text" id="stateText1">AVAILABLE</div>
                 </div>
                 <div class="slot-footer">
-                  <span class="sensor-dist" id="dist1"><i class="fa-solid fa-ruler-horizontal"></i> Empty</span>
+                  <span class="sensor-dist" id="dist1"><i class="fa-solid fa-ruler-horizontal"></i> IR / Ultrasonic</span>
                 </div>
               </div>
 
               <!-- SLOT 2 -->
-              <div class="parking-slot" id="slotBay2" data-slot="2">
+              <div class="parking-slot available" id="slotBay2" data-slot="2">
                 <div class="slot-header">
                   <span class="slot-num">SLOT 02</span>
                   <div class="slot-led" id="ledSlot2" title="Slot 2 Status LED"></div>
                 </div>
                 <div class="slot-body">
-                  <div class="car-graphic" id="car2">
+                  <div class="car-graphic" id="car2" style="display: none;">
                     <i class="fa-solid fa-car-side"></i>
                   </div>
-                  <div class="booking-tag" id="bookTag2">RESERVED</div>
+                  <div class="booking-tag" id="bookTag2" style="display: none;">RESERVED</div>
                   <div class="slot-state-text" id="stateText2">AVAILABLE</div>
                 </div>
                 <div class="slot-footer">
-                  <span class="sensor-dist" id="dist2"><i class="fa-solid fa-ruler-horizontal"></i> Empty</span>
+                  <span class="sensor-dist" id="dist2"><i class="fa-solid fa-ruler-horizontal"></i> IR / Ultrasonic</span>
                 </div>
               </div>
 
               <!-- SLOT 3 -->
-              <div class="parking-slot" id="slotBay3" data-slot="3">
+              <div class="parking-slot available" id="slotBay3" data-slot="3">
                 <div class="slot-header">
                   <span class="slot-num">SLOT 03</span>
                   <div class="slot-led" id="ledSlot3" title="Slot 3 Status LED"></div>
                 </div>
                 <div class="slot-body">
-                  <div class="car-graphic" id="car3">
+                  <div class="car-graphic" id="car3" style="display: none;">
                     <i class="fa-solid fa-car-side"></i>
                   </div>
-                  <div class="booking-tag" id="bookTag3">RESERVED</div>
+                  <div class="booking-tag" id="bookTag3" style="display: none;">RESERVED</div>
                   <div class="slot-state-text" id="stateText3">AVAILABLE</div>
                 </div>
                 <div class="slot-footer">
-                  <span class="sensor-dist" id="dist3"><i class="fa-solid fa-ruler-horizontal"></i> Empty</span>
+                  <span class="sensor-dist" id="dist3"><i class="fa-solid fa-ruler-horizontal"></i> IR / Ultrasonic</span>
                 </div>
               </div>
             </div>
@@ -215,12 +201,9 @@
               <div class="gate-post"></div>
             </div>
             <div class="gate-state-pill" id="gateOutStatus">CLOSED</div>
-            <div class="sensor-indicator" id="irOutSensor" title="IR Gate Out Sensor (Pin 27)">
+            <div class="sensor-indicator" id="irOutSensor" title="IR Gate Out Sensor">
               <span class="dot"></span> IR Sensor OUT
             </div>
-            <button class="gate-trigger-btn" id="triggerGateOutBtn" title="Simulate car exiting at Gate OUT">
-              <i class="fa-solid fa-car"></i> Car Departure
-            </button>
           </div>
 
         </div>
@@ -228,18 +211,14 @@
         <!-- System Hardware LED Panel Indicator -->
         <div class="hardware-leds-bar">
           <div class="hw-led-group">
-            <span class="hw-label">System Green LED (Pin 12):</span>
+            <span class="hw-label">System Status LED:</span>
             <div class="led-bulb bulb-green" id="hwLedGreen"></div>
           </div>
           <div class="hw-led-group">
-            <span class="hw-label">System Red LED (Pin 13):</span>
-            <div class="led-bulb bulb-red" id="hwLedRed"></div>
-          </div>
-          <div class="hw-led-group">
-            <span class="hw-label">Yellow LEDs (Pins 17, 16, 15):</span>
-            <div class="led-bulb bulb-yellow" id="hwLedYellow1" title="Slot 1 Yellow LED"></div>
-            <div class="led-bulb bulb-yellow" id="hwLedYellow2" title="Slot 2 Yellow LED"></div>
-            <div class="led-bulb bulb-yellow" id="hwLedYellow3" title="Slot 3 Yellow LED"></div>
+            <span class="hw-label">Slot Status LEDs:</span>
+            <div class="led-bulb bulb-yellow" id="hwLedYellow1" title="Slot 1 LED"></div>
+            <div class="led-bulb bulb-yellow" id="hwLedYellow2" title="Slot 2 LED"></div>
+            <div class="led-bulb bulb-yellow" id="hwLedYellow3" title="Slot 3 LED"></div>
           </div>
         </div>
 
@@ -260,20 +239,20 @@
 
           <div class="lcd-outer-bezel">
             <div class="lcd-screen" id="lcdScreen">
-              <div class="lcd-row" id="lcdRow0">S1:O  S2:O  S3:O</div>
-              <div class="lcd-row" id="lcdRow1">Gate Closed     </div>
+              <div class="lcd-row" id="lcdRow0">S1:A  S2:A  S3:A</div>
+              <div class="lcd-row" id="lcdRow1">Gate Closed</div>
             </div>
           </div>
         </section>
 
-        <!-- SLOT BOOKING CONTROLS -->
+        <!-- SLOT BOOKING CONTROLS (IDs matched to setupEventListeners) -->
         <section class="card booking-card">
           <div class="card-header">
             <div class="card-title">
               <i class="fa-solid fa-ticket"></i>
               <h2>Slot Reservation Controls</h2>
             </div>
-            <span class="badge info-badge">Blynk V0, V1, V2</span>
+            <span class="badge info-badge">ESP32 REST API</span>
           </div>
 
           <div class="booking-slots-list">
@@ -290,8 +269,8 @@
                 </div>
               </div>
               <div class="slot-actions">
-                <button class="btn btn-book" id="bookBtn1" onclick="toggleSlotBooking(1)">
-                  <i class="fa-solid fa-bookmark"></i> Book Slot
+                <button class="btn btn-book" id="toggleSlot1">
+                  <i class="fa-solid fa-bookmark"></i> Toggle Booking
                 </button>
               </div>
             </div>
@@ -308,8 +287,8 @@
                 </div>
               </div>
               <div class="slot-actions">
-                <button class="btn btn-book" id="bookBtn2" onclick="toggleSlotBooking(2)">
-                  <i class="fa-solid fa-bookmark"></i> Book Slot
+                <button class="btn btn-book" id="toggleSlot2">
+                  <i class="fa-solid fa-bookmark"></i> Toggle Booking
                 </button>
               </div>
             </div>
@@ -326,8 +305,8 @@
                 </div>
               </div>
               <div class="slot-actions">
-                <button class="btn btn-book" id="bookBtn3" onclick="toggleSlotBooking(3)">
-                  <i class="fa-solid fa-bookmark"></i> Book Slot
+                <button class="btn btn-book" id="toggleSlot3">
+                  <i class="fa-solid fa-bookmark"></i> Toggle Booking
                 </button>
               </div>
             </div>
@@ -349,7 +328,7 @@
           <div class="event-log-box" id="eventLogBox">
             <div class="log-entry info">
               <span class="log-time">System</span>
-              <span class="log-msg">Smart Car Parking System Dashboard Initialized.</span>
+              <span class="log-msg">Smart Car Parking System Dashboard Initialized (Target: 10.63.112.105).</span>
             </div>
           </div>
         </section>
@@ -359,75 +338,50 @@
     </div>
 
   </main>
-  <!-- SETTINGS MODAL -->  <div class="modal-backdrop" id="settingsModal">
+
+  <!-- SETTINGS / ENDPOINTS INFO MODAL -->
+  <div class="modal-backdrop" id="settingsModal" style="display: none;">
     <div class="modal-dialog">
       <div class="modal-header">
         <div class="card-title">
           <i class="fa-solid fa-sliders"></i>
-          <h3>Blynk IoT Cloud Configuration</h3>
+          <h3>ESP32 REST API Configuration</h3>
         </div>
         <button class="modal-close-btn" id="closeSettingsBtn">&times;</button>
       </div>
+
       <div class="modal-body">
-        <div class="form-group">
-          <label for="blynkTokenInput">Blynk Auth Token (from Arduino Code):</label>
-          <div class="input-with-icon">
-            <i class="fa-solid fa-key"></i>
-            <input type="text" id="blynkTokenInput" placeholder="Paste your BLYNK_AUTH_TOKEN here">
-          </div>
-          <small class="help-text">Found in your code: <code>#define BLYNK_AUTH_TOKEN "..."</code></small>
-        </div>
-        <div class="form-group">
-          <label for="blynkServerSelect">Blynk Cloud Server Region:</label>
-          <select id="blynkServerSelect">
-            <option value="blynk.cloud">blynk.cloud (Global Default)</option>
-            <option value="fra1.blynk.cloud">fra1.blynk.cloud (Europe)</option>
-            <option value="ny3.blynk.cloud">ny3.blynk.cloud (North America)</option>
-            <option value="sgp1.blynk.cloud">sgp1.blynk.cloud (Asia / Singapore)</option>
-            <option value="blr1.blynk.cloud">blr1.blynk.cloud (India)</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="pollIntervalSelect">Polling Refresh Rate:</label>
-          <select id="pollIntervalSelect">
-            <option value="1000">1.0 Second (Realtime)</option>
-            <option value="1500" selected>1.5 Seconds (Recommended)</option>
-            <option value="2500">2.5 Seconds</option>
-            <option value="5000">5.0 Seconds</option>
-          </select>
-        </div>
         <div class="datastreams-reference">
-          <h4><i class="fa-solid fa-circle-info"></i> Virtual Pin Mappings in your Arduino Code</h4>
+          <h4><i class="fa-solid fa-circle-info"></i> Active ESP32 Endpoints</h4>
           <table>
             <thead>
               <tr>
-                <th>Pin</th>
-                <th>Direction</th>
-                <th>Usage</th>
+                <th>Method</th>
+                <th>Endpoint</th>
+                <th>Description</th>
               </tr>
             </thead>
             <tbody>
-              <tr><td><code>V0</code></td><td>Web ➔ ESP32</td><td>Slot 1 Booking (0: Unbooked, 1: Booked)</td></tr>
-              <tr><td><code>V1</code></td><td>Web ➔ ESP32</td><td>Slot 2 Booking (0: Unbooked, 1: Booked)</td></tr>
-              <tr><td><code>V2</code></td><td>Web ➔ ESP32</td><td>Slot 3 Booking (0: Unbooked, 1: Booked)</td></tr>
-              <tr><td><code>V3</code></td><td>ESP32 ➔ Web</td><td>Slot 1 Available (1: Free, 0: Unavailable)</td></tr>
-              <tr><td><code>V4</code></td><td>ESP32 ➔ Web</td><td>Slot 2 Available (1: Free, 0: Unavailable)</td></tr>
-              <tr><td><code>V5</code></td><td>ESP32 ➔ Web</td><td>Slot 3 Available (1: Free, 0: Unavailable)</td></tr>
+              <tr>
+                <td><code>GET</code></td>
+                <td><code>/status</code></td>
+                <td>Returns JSON state for slots, gates, and LCD line</td>
+              </tr>
+              <tr>
+                <td><code>GET</code></td>
+                <td><code>/book?slot=N&amp;state=X</code></td>
+                <td>Updates slot booking (slot: 1-3, state: 0 or 1)</td>
+              </tr>
             </tbody>
           </table>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" id="testApiBtn">
-          <i class="fa-solid fa-plug"></i> Test Connection
-        </button>
-        <button class="btn btn-primary" id="saveSettingsBtn">
-          <i class="fa-solid fa-floppy-disk"></i> Save & Connect
-        </button>
-      </div>
     </div>
   </div>
-  <!-- Toast Notification Container --> <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
   <script src="app.js"></script>
 </body>
 </html>
