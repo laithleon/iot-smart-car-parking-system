@@ -3,7 +3,7 @@
  */
 
 // Load saved IP from localStorage or fallback
-const ESP32_IP = "http://10.63.112.105";
+const ESP32_IP = "http://10.182.150.105";
 
 const state = {
   slotBooked: [false, false, false],
