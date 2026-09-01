@@ -1,9 +1,9 @@
 /**
  * SMART CAR PARKING IOT DASHBOARD - APPLICATION JAVASCRIPT
- * Direct communication with ESP32 via HTTP endpoints
  */
 
-const ESP32_IP = "http://10.63.112.105";
+// Load saved IP from localStorage or fallback
+let ESP32_IP = localStorage.getItem("esp32_ip") || "http://192.168.43.100";
 
 const state = {
   slotBooked: [false, false, false],
@@ -13,6 +13,7 @@ const state = {
   gateOutOpen: false,
   lcdLine1: "",
   lcdLine2: "",
+  isOnline: false,
   pollInterval: 1500
 };
 
@@ -20,19 +21,43 @@ let pollTimer = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
+  updateHostDisplay();
   renderDashboard();
   startPolling();
 });
 
+function updateHostDisplay() {
+  const hostValue = document.querySelector(".stat-card:nth-child(3) .stat-value");
+  if (hostValue) hostValue.textContent = ESP32_IP.replace("http://", "");
+  const subBrand = document.querySelector(".sub-brand");
+  if (subBrand) subBrand.textContent = `ESP32 Direct HTTP API (${ESP32_IP})`;
+}
+
 // =========================================================
-// API COMMUNICATION (ESP32 endpoints)
+// API COMMUNICATION
 // =========================================================
 async function fetchSlotData() {
+  const statusDot = document.getElementById("statusDot");
+  const statusText = document.getElementById("statusText");
+
   try {
-    const res = await fetch(`${ESP32_IP}/status`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s timeout
+
+    const res = await fetch(`${ESP32_IP}/status`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
     if (res.ok) {
       const data = await res.json();
-      // Update state from ESP32 JSON
+      state.isOnline = true;
+
+      // Update status pill
+      if (statusDot) {
+        statusDot.className = "status-dot online";
+      }
+      if (statusText) statusText.textContent = "ESP32 Online";
+
+      // Parse states
       state.slotBooked = [
         data.slot1 === "Booked",
         data.slot2 === "Booked",
@@ -50,12 +75,18 @@ async function fetchSlotData() {
       ];
       state.gateInOpen = (data.gateIn === "Open");
       state.gateOutOpen = (data.gateOut === "Open");
-      state.lcdLine1 = data.lcd;   // ESP32 sends combined LCD line
-      state.lcdLine2 = "";         // optional second line if you extend JSON
+      state.lcdLine1 = data.lcd || "";
+
       renderDashboard();
+    } else {
+      throw new Error(`HTTP Error: ${res.status}`);
     }
   } catch (err) {
-    console.error("Error fetching slot data:", err);
+    state.isOnline = false;
+    if (statusDot) {
+      statusDot.className = "status-dot offline";
+    }
+    if (statusText) statusText.textContent = "ESP32 Offline (Check IP / WiFi)";
   }
 }
 
@@ -65,6 +96,7 @@ async function sendBookingUpdate(slotNum, booked) {
     return res.ok;
   } catch (err) {
     console.error("Failed to update booking:", err);
+    alert(`Could not reach ESP32 at ${ESP32_IP}. Please check connection.`);
     return false;
   }
 }
@@ -82,9 +114,6 @@ function stopPolling() {
   }
 }
 
-// =========================================================
-// BOOKING LOGIC
-// =========================================================
 function toggleSlotBooking(slotNum) {
   const idx = slotNum - 1;
   const newBookedState = !state.slotBooked[idx];
@@ -98,7 +127,8 @@ function toggleSlotBooking(slotNum) {
 // DASHBOARD RENDERING
 // =========================================================
 function renderDashboard() {
-  // Render slots
+  let hasViolation = false;
+
   for (let i = 0; i < 3; i++) {
     const slotNum = i + 1;
     const isBooked = state.slotBooked[i];
@@ -108,43 +138,80 @@ function renderDashboard() {
     const bookTag = document.getElementById(`bookTag${slotNum}`);
     const carGraphic = document.getElementById(`car${slotNum}`);
 
-    if (isBooked && isOccupied) {
-      stateText.textContent = "VIOLATION!";
-      slotBay.className = "parking-slot violation";
-      bookTag.style.display = "block";
-      carGraphic.style.display = "block";
-    } else if (isOccupied) {
-      stateText.textContent = "OCCUPIED";
-      slotBay.className = "parking-slot occupied";
-      bookTag.style.display = "none";
-      carGraphic.style.display = "block";
-    } else if (isBooked) {
-      stateText.textContent = "RESERVED";
-      slotBay.className = "parking-slot booked";
-      bookTag.style.display = "block";
-      carGraphic.style.display = "none";
-    } else {
-      stateText.textContent = "AVAILABLE";
-      slotBay.className = "parking-slot available";
-      bookTag.style.display = "none";
-      carGraphic.style.display = "none";
+    if (slotBay && stateText) {
+      if (isBooked && isOccupied) {
+        hasViolation = true;
+        stateText.textContent = "VIOLATION!";
+        slotBay.className = "parking-slot violation";
+        if (bookTag) bookTag.style.display = "block";
+        if (carGraphic) carGraphic.style.display = "block";
+      } else if (isOccupied) {
+        stateText.textContent = "OCCUPIED";
+        slotBay.className = "parking-slot occupied";
+        if (bookTag) bookTag.style.display = "none";
+        if (carGraphic) carGraphic.style.display = "block";
+      } else if (isBooked) {
+        stateText.textContent = "RESERVED";
+        slotBay.className = "parking-slot booked";
+        if (bookTag) bookTag.style.display = "block";
+        if (carGraphic) carGraphic.style.display = "none";
+      } else {
+        stateText.textContent = "AVAILABLE";
+        slotBay.className = "parking-slot available";
+        if (bookTag) bookTag.style.display = "none";
+        if (carGraphic) carGraphic.style.display = "none";
+      }
     }
   }
 
-  // Render gate status
-  document.getElementById("gateInStatus").textContent = state.gateInOpen ? "OPEN" : "CLOSED";
-  document.getElementById("gateOutStatus").textContent = state.gateOutOpen ? "OPEN" : "CLOSED";
+  // Violation banner
+  const banner = document.getElementById("violationBanner");
+  if (banner) banner.style.display = hasViolation ? "flex" : "none";
 
-  // Render LCD lines
-  document.getElementById("lcdRow0").textContent = state.lcdLine1;
-  document.getElementById("lcdRow1").textContent = state.lcdLine2;
+  // Gate Arms & status
+  const gateInStatus = document.getElementById("gateInStatus");
+  const gateOutStatus = document.getElementById("gateOutStatus");
+  const gateInArm = document.getElementById("gateInArm");
+  const gateOutArm = document.getElementById("gateOutArm");
+
+  if (gateInStatus) gateInStatus.textContent = state.gateInOpen ? "OPEN" : "CLOSED";
+  if (gateOutStatus) gateOutStatus.textContent = state.gateOutOpen ? "OPEN" : "CLOSED";
+  if (gateInArm) gateInArm.className = state.gateInOpen ? "barrier-arm open" : "barrier-arm";
+  if (gateOutArm) gateOutArm.className = state.gateOutOpen ? "barrier-arm open" : "barrier-arm";
+
+  // LCD Lines
+  const lcd0 = document.getElementById("lcdRow0");
+  if (lcd0) lcd0.textContent = state.lcdLine1 || "S1:O  S2:O  S3:O";
 }
 
 // =========================================================
-// EVENT LISTENERS
+// EVENT LISTENERS & SETTINGS MODAL
 // =========================================================
 function setupEventListeners() {
-  document.getElementById("toggleSlot1").addEventListener("click", () => toggleSlotBooking(1));
-  document.getElementById("toggleSlot2").addEventListener("click", () => toggleSlotBooking(2));
-  document.getElementById("toggleSlot3").addEventListener("click", () => toggleSlotBooking(3));
+  document.getElementById("toggleSlot1")?.addEventListener("click", () => toggleSlotBooking(1));
+  document.getElementById("toggleSlot2")?.addEventListener("click", () => toggleSlotBooking(2));
+  document.getElementById("toggleSlot3")?.addEventListener("click", () => toggleSlotBooking(3));
+
+  // Settings Modal (Configure ESP32 IP)
+  const settingsBtn = document.getElementById("settingsBtn");
+  const modal = document.getElementById("settingsModal");
+  const closeBtn = document.getElementById("closeSettingsBtn");
+
+  if (settingsBtn && modal) {
+    settingsBtn.addEventListener("click", () => {
+      const newIP = prompt("Enter ESP32 IP Address (e.g., 192.168.43.50):", ESP32_IP.replace("http://", ""));
+      if (newIP) {
+        ESP32_IP = newIP.startsWith("http://") ? newIP : `http://${newIP.trim()}`;
+        localStorage.setItem("esp32_ip", ESP32_IP);
+        updateHostDisplay();
+        startPolling();
+      }
+    });
+  }
+
+  if (closeBtn && modal) {
+    closeBtn.addEventListener("click", () => {
+      modal.style.display = "none";
+    });
+  }
 }
